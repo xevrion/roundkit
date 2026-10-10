@@ -17,11 +17,12 @@ bool Panel::begin(lv_obj_t* parent, int width, int height) {
     return true;
 }
 
-void Panel::present() {
+bool Panel::present() {
     Rect r;
-    if (!surface_->take_dirty(r)) return;
+    if (!surface_->take_dirty(r)) return false;
     lv_area_t area = {r.x0, r.y0, r.x1, r.y1};
     lv_obj_invalidate_area(canvas_, &area);
+    return true;
 }
 
 }  // namespace rk

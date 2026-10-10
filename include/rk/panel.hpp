@@ -12,8 +12,9 @@ class Panel {
 public:
     bool begin(lv_obj_t* parent, int width = 466, int height = 466);
     Surface& surface() { return *surface_; }
-    // Hands the painted region to LVGL. The caller holds the display lock.
-    void present();
+    // Hands the painted region to LVGL and returns true, or returns false when nothing was
+    // painted since the last call. The caller holds the display lock.
+    bool present();
 
 private:
     lv_obj_t* canvas_ = nullptr;
