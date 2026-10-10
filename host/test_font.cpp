@@ -107,7 +107,64 @@ static void test_write_row() {
     CHECK(!sf.take_dirty(r), "spans entirely outside change nothing");
 }
 
+static int total_area(const Rect* r, int n) {
+    int a = 0;
+    for (int i = 0; i < n; ++i) a += (r[i].x1 - r[i].x0 + 1) * (r[i].y1 - r[i].y0 + 1);
+    return a;
+}
+
+static void test_dirty_boxes() {
+    std::vector<uint16_t> px(466 * 466, 0);
+    Surface sf(reinterpret_cast<uint8_t*>(px.data()), 466, 466, 466 * 2);
+    Rect r[Surface::kMaxDirty];
+
+    CHECK(sf.take_dirty_rects(r, Surface::kMaxDirty) == 0, "a fresh surface is clean");
+
+    // A block at the top and a thin strip at the bottom stay two small updates.
+    sf.fill_rect(100, 40, 240, 240, 1);
+    sf.fill_rect(60, 380, 350, 14, 2);
+    int n = sf.take_dirty_rects(r, Surface::kMaxDirty);
+    CHECK(n == 2, "far apart paints stay separate, got %d boxes", n);
+    CHECK(total_area(r, n) < 240 * 240 + 350 * 14 + 4000, "and their total is close to what was painted: %d", total_area(r, n));
+    for (int i = 0; i < n; ++i) CHECK((r[i].x0 & 1) == 0 && (r[i].y0 & 1) == 0 && (r[i].x1 & 1) == 1 && (r[i].y1 & 1) == 1, "box %d is even aligned", i);
+    CHECK(sf.take_dirty_rects(r, Surface::kMaxDirty) == 0, "taking clears them");
+
+    // Neighbouring paints merge into one.
+    sf.fill_rect(100, 100, 50, 50, 1);
+    sf.fill_rect(150, 100, 50, 50, 1);
+    sf.fill_rect(120, 145, 10, 20, 1);
+    n = sf.take_dirty_rects(r, Surface::kMaxDirty);
+    CHECK(n == 1 && r[0].x0 == 100 && r[0].x1 >= 199, "touching paints become one box, got %d", n);
+
+    // A pixel inside an existing box adds nothing.
+    sf.fill_rect(100, 100, 50, 50, 1);
+    sf.set(120, 120, 5);
+    n = sf.take_dirty_rects(r, Surface::kMaxDirty);
+    CHECK(n == 1 && total_area(r, n) == 50 * 50, "a pixel inside a box does not grow it");
+
+    // Scattered pixels never need more than the maximum number of boxes, and always cover everything painted.
+    for (int i = 0; i < 400; ++i) sf.set((i * 53) % 466, (i * 97) % 466, 7);
+    n = sf.take_dirty_rects(r, Surface::kMaxDirty);
+    CHECK(n >= 1 && n <= Surface::kMaxDirty, "scatter fits in %d boxes, got %d", Surface::kMaxDirty, n);
+    bool covered = true;
+    for (int i = 0; i < 400; ++i) {
+        const int x = (i * 53) % 466, y = (i * 97) % 466;
+        bool in = false;
+        for (int k = 0; k < n; ++k) in = in || (x >= r[k].x0 && x <= r[k].x1 && y >= r[k].y0 && y <= r[k].y1);
+        covered = covered && in;
+    }
+    CHECK(covered, "every painted pixel is inside a reported box");
+
+    // The single-box form still gives one box around everything.
+    sf.fill_rect(10, 10, 20, 20, 1);
+    sf.fill_rect(400, 400, 20, 20, 1);
+    Rect u;
+    CHECK(sf.take_dirty(u) && u.x0 == 10 && u.y0 == 10 && u.x1 >= 419 && u.y1 >= 419, "take_dirty is the union");
+    CHECK(!sf.take_dirty(u), "and it clears too");
+}
+
 int main() {
+    test_dirty_boxes();
     test_write_row();
     test_every_printable_has_a_glyph();
     test_widths();
