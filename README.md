@@ -31,7 +31,6 @@ Only the gesture logic runs off the board.
 ## Projects using it
 
 - [hourglass](https://github.com/xevrion/hourglass), a pomodoro timer that is an hourglass
-- omnitrix, in progress
 
 ## License
 
