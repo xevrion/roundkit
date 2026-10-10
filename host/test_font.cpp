@@ -85,7 +85,30 @@ static void test_fold_is_safe() {
     CHECK(fold("ok\xF0") == "OK?", "a lone lead byte at the end: %s", fold("ok\xF0").c_str());
 }
 
+static void test_write_row() {
+    std::vector<uint16_t> px(10 * 4, 0);
+    Surface sf(reinterpret_cast<uint8_t*>(px.data()), 10, 4, 20);
+    const uint16_t src[6] = {1, 2, 3, 4, 5, 6};
+    sf.write_row(2, 1, src, 6);
+    CHECK(sf.get(2, 1) == 1 && sf.get(7, 1) == 6 && sf.get(1, 1) == 0 && sf.get(8, 1) == 0, "span lands where it should");
+    Rect r;
+    CHECK(sf.take_dirty(r) && r.x0 == 2 && r.x1 == 7 && r.y0 == 0 && r.y1 == 1, "dirty box covers the span: %d,%d..%d,%d", r.x0, r.y0, r.x1, r.y1);
+
+    sf.write_row(-2, 2, src, 6);
+    CHECK(sf.get(0, 2) == 3 && sf.get(3, 2) == 6, "a span starting off the left edge is clipped, not shifted");
+    sf.write_row(7, 3, src, 6);
+    CHECK(sf.get(7, 3) == 1 && sf.get(9, 3) == 3, "a span running off the right edge is clipped");
+    sf.take_dirty(r);
+    sf.write_row(0, -1, src, 6);
+    sf.write_row(0, 4, src, 6);
+    sf.write_row(-9, 0, src, 6);
+    sf.write_row(10, 0, src, 6);
+    sf.write_row(0, 0, src, 0);
+    CHECK(!sf.take_dirty(r), "spans entirely outside change nothing");
+}
+
 int main() {
+    test_write_row();
     test_every_printable_has_a_glyph();
     test_widths();
     test_clip_and_rotate();

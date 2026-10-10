@@ -30,6 +30,20 @@ public:
 
     uint16_t get(int x, int y) const { return row(y)[x]; }
 
+    // Copies n pixels into row y starting at x, clipped to the surface, with the dirty box
+    // updated once for the whole span. Much cheaper than n calls to set().
+    void write_row(int x, int y, const uint16_t* px, int n) {
+        if (y < 0 || y >= h_ || n <= 0) return;
+        int skip = 0;
+        if (x < 0) skip = -x, x = 0;
+        if (skip >= n) return;
+        n -= skip;
+        if (x + n > w_) n = w_ - x;
+        if (n <= 0) return;
+        std::copy(px + skip, px + skip + n, row(y) + x);
+        grow(x, y, x + n - 1, y);
+    }
+
     void fill_rect(int x, int y, int w, int h, uint16_t c) {
         const int x0 = std::max(x, 0), y0 = std::max(y, 0);
         const int x1 = std::min(x + w, w_) - 1, y1 = std::min(y + h, h_) - 1;
