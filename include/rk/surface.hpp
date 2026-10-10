@@ -33,6 +33,8 @@ public:
     }
 
     uint16_t get(int x, int y) const { return row(y)[x]; }
+    // Read-only pointer to the start of row y, for code that blends against what is already there.
+    const uint16_t* row_at(int y) const { return row(y); }
 
     // Copies n pixels into row y starting at x, clipped to the surface, with the dirty boxes
     // updated once for the whole span. Much cheaper than n calls to set().
