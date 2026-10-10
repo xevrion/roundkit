@@ -31,6 +31,7 @@ Only the gesture logic runs off the board.
 ## Projects using it
 
 - [hourglass](https://github.com/xevrion/hourglass), a pomodoro timer that is an hourglass
+- [cassette-orb](https://github.com/xevrion/cassette-orb), a round Spotify now-playing display
 
 ## License
 
