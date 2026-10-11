@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Runs idf.py inside Espressif's image so nothing has to be installed on the host.
 # Set PORT=/dev/ttyACM0 to pass the board through for flashing.
+#   scripts/idf build              idf.py build
+#   scripts/idf --run esptool.py ...   any other tool from the image
 set -euo pipefail
 
 image=${IDF_IMAGE:-espressif/idf:v5.5.1}
@@ -12,6 +14,12 @@ args=(--rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$root":/project:z -w /pro
 # SELinux blocks the container from opening the tty unless its label is dropped.
 if [ -n "${PORT:-}" ]; then
     args+=(--device "$PORT" --group-add "$(getent group dialout | cut -d: -f3)" --security-opt label=disable)
+fi
+
+# `idf --run CMD ARGS` runs any command from the image (esptool.py, parttool.py) instead of idf.py.
+if [ "${1:-}" = "--run" ]; then
+    shift
+    exec docker run "${args[@]}" "$image" bash -lc '"$@"' _ "$@"
 fi
 
 exec docker run "${args[@]}" "$image" bash -lc 'idf.py "$@"' _ "$@"
